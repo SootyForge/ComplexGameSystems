@@ -206,6 +206,7 @@ namespace Checkers
             int x2 = (int)end.x;
             int y2 = (int)end.y;
 
+            // Note(Manny): Probably won't need this later
             // Record start Drag & end Drag
             startDrag = new Vector2(x1, y1);
             endDrag = new Vector2(x2, y2);
@@ -232,9 +233,17 @@ namespace Checkers
                     // Move t back to original (start)
                     MovePiece(selectedPiece, x1, y1);
                 }
+
+                EndTurn();
             }
         }
 
+        /// <summary>
+        /// Checks if given coordinates are out of the board range
+        /// </summary>
+        /// <param name="x">X Location</param>
+        /// <param name="y">Y Location</param>
+        /// <returns></returns>
         private bool OutOfBounds(int x, int y)
         {
             return x < 0 || x >= 8 || y < 0 || y >= 8;
@@ -247,22 +256,144 @@ namespace Checkers
             int x2 = (int)end.x;
             int y2 = (int)end.y;
 
-            // Is the start the same as the end?
-            if(start == end)
+            #region Rule #1 - Is the start the same as the end?
+            if (start == end)
             {
                 // You can move back where you were
                 return true;
             }
+            #endregion
 
-            // If you are moving on top of another piece
-            if(pieces[x2, y2])
+            #region Rule #2 - If you are moving on top of another piece
+            if (pieces[x2, y2])
             {
                 // YA CAN'T DO DAT!
                 return false;
             }
+            #endregion
+            
+            #region Rule #3 - Detect if we're moving diagonal & forwards / backwards
 
+            // Store X change value (abs)
+            int locationX = Mathf.Abs(x1 - x2);
+            int locationY = y2 - y1;
+            
+            // Rule #3.1 - White piece rule
+            if(selectedPiece.isWhite || selectedPiece.isKing)
+            {
+                // Check if we're moving diagonally right
+                if(locationX == 1 && locationY == 1)
+                {
+                    // This is a valid move!
+                    return true;
+                }
+                // If moving diagonally left (two spaces)
+                else if(locationX == 2 && locationY == 2)
+                {
+                    // Get the piece in between move
+                    Piece pieceBetween = GetPieceBetween(start, end);
+                    // If there is a piece between AND the piece isn't the same color
+                    if(pieceBetween != null &&
+                       pieceBetween.isWhite != selectedPiece.isWhite)
+                    {
+                        // Destroy the piece between
+                        RemovePiece(pieceBetween);
+                        // You're allowed to move there!
+                        return true;
+                    }
+                }
+            }
+            
+            // Rule #3.2 - Black piece rule
+            if(!selectedPiece.isWhite || selectedPiece.isKing)
+            {
+                // Check if we're moving diagonally right
+                if (locationX == 1 && locationY == -1)
+                {
+                    // This is a valid move!
+                    return true;
+                }
+                // If moving diagonally left (two spaces)
+                else if (locationX == 2 && locationY == -2)
+                {
+                    // Get the piece in between move
+                    Piece pieceBetween = GetPieceBetween(start, end);
+                    // If there is a piece between AND the piece isn't the same color
+                    if (pieceBetween != null &&
+                        pieceBetween.isWhite != selectedPiece.isWhite)
+                    {
+                        // Destroy the piece between
+                        RemovePiece(pieceBetween);
+                        // You're allowed to move there!
+                        return true;
+                    }
+                }
+            }
+
+            //print(XLocation + "X, " + YLocation + "Y");
+            // Add rules here
+            // Add rules here
+            #endregion
+            
             // Yeah... Alright, you can do dat.
-            return true;
+            return false;
+        }
+
+        /// <summary>
+        /// Calculate & returns the piece between start and end locations
+        /// </summary>
+        /// <param name="start">Start Location</param>
+        /// <param name="end">End Location</param>
+        /// <returns></returns>
+        private Piece GetPieceBetween(Vector2 start, Vector2 end)
+        {
+            int xIndex = (int)(start.x + end.x) / 2;
+            int yIndex = (int)(start.y + end.y) / 2;
+            return pieces[xIndex, yIndex];
+        }
+
+        /// <summary>
+        /// Removes a piece from the board
+        /// </summary>
+        /// <param name="pieceToRemove"></param>
+        private void RemovePiece(Piece pieceToRemove)
+        {
+            // Remove it from the array
+            pieces[pieceToRemove.x, pieceToRemove.y] = null;
+            // Destroy the gameobject of the piece immediately
+            DestroyImmediate(pieceToRemove.gameObject);
+        }
+
+        /// <summary>
+        /// Runs after the turn has finished
+        /// </summary>
+        private void EndTurn()
+        {
+            CheckForKing();
+
+        }
+
+        /// <summary>
+        /// Check if a piece needs to be kinged
+        /// </summary>
+        void CheckForKing()
+        {
+            // Get the end drag locations
+            int x = (int)endDrag.x;
+            int y = (int)endDrag.y;
+            // Check if the selected piece is not kinged
+            if (selectedPiece && !selectedPiece.isKing)
+            {
+                bool whiteNeedsKing = selectedPiece.isWhite && y == 7;
+                bool blackNeedsKing = !selectedPiece.isWhite && y == 0;
+                // If the selected piece is white and reached the end of the board
+                if (whiteNeedsKing || blackNeedsKing)
+                {
+                    // The selected piece is kinged!
+                    selectedPiece.isKing = true;
+                    // Run animations
+                }
+            }
         }
     }
 }
